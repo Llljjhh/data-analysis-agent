@@ -1,27 +1,44 @@
 // src/components/chat-panel.tsx
-// 主聊天区域：消息列表 + 输入框 + HITL 审批卡片
+// 聊天面板 —— 动效 + 玻璃拟态升级
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, ShieldAlert, CheckCircle2, XCircle, Edit3 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import {
+  Send,
+  Bot,
+  User,
+  Loader2,
+  ShieldAlert,
+  CheckCircle2,
+  XCircle,
+  Edit3,
+  Sparkles,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import ReactMarkdown from "react-markdown";
 import { ToolCallCard } from "./tool-call-card";
 import { ReflectionCard } from "./reflection-card";
-import ReactMarkdown from "react-markdown";
 import type { AgentMessage, InterruptRequest } from "@/types/agent";
 
 interface ChatPanelProps {
   messages: AgentMessage[];
   isStreaming: boolean;
   onSend: (content: string) => void;
-  onInterruptResponse: (action: "approve" | "modify" | "reject", feedback: string) => void;
+  onInterruptResponse: (
+    action: "approve" | "modify" | "reject",
+    feedback: string
+  ) => void;
 }
 
-export function ChatPanel({ messages, isStreaming, onSend, onInterruptResponse }: ChatPanelProps) {
+export function ChatPanel({
+  messages,
+  isStreaming,
+  onSend,
+  onInterruptResponse,
+}: ChatPanelProps) {
   const [input, setInput] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // 每次消息变化自动滚到底部
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
@@ -33,66 +50,99 @@ export function ChatPanel({ messages, isStreaming, onSend, onInterruptResponse }
   };
 
   return (
-    <div className="flex flex-col h-full bg-zinc-950">
+    <div className="flex flex-col h-full relative">
       {/* 顶部状态栏 */}
-      <div className="h-14 border-b border-zinc-800 flex items-center px-6 gap-3 shrink-0">
-        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="text-sm font-medium text-zinc-400">Data Analyst Agent</span>
-        <span className="text-xs text-zinc-600 ml-auto">已连接</span>
+      <div className="h-14 glass border-b border-zinc-800/50 flex items-center px-6 gap-3 shrink-0 z-10">
+        <div className="relative">
+          <div className="w-2 h-2 rounded-full bg-emerald-500" />
+          <div className="absolute inset-0 w-2 h-2 rounded-full bg-emerald-500 animate-ping opacity-75" />
+        </div>
+        <span className="text-sm font-medium text-zinc-300">
+          Data Analyst Agent
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-[10px] text-zinc-500 uppercase tracking-wider">
+            {isStreaming ? "思考中" : "已就绪"}
+          </span>
+        </div>
       </div>
 
       {/* 消息滚动区 */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-6">
-        {/* 空状态：欢迎 + 示例按钮 */}
-        {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center">
-              <Bot className="w-8 h-8 text-white" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-zinc-200">数据分析智能体</h2>
-              <p className="text-sm text-zinc-500 mt-1 max-w-md">
-                上传数据文件，用自然语言提问。我会自动规划、执行分析、反思纠错，必要时请求您确认。
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2 justify-center mt-4">
-              {["分析数据分布特征", "计算各维度汇总指标", "生成趋势图表", "检测数据异常值"].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => onSend(s)}
-                  className="px-3 py-1.5 text-xs rounded-full border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200 transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 bg-grid">
+        <AnimatePresence mode="popLayout">
+          {messages.length === 0 && (
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center h-full text-center space-y-6"
+            >
+              <div className="relative">
+                <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-violet-500/30 avatar-breathing">
+                  <Bot className="w-10 h-10 text-white" />
+                </div>
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-emerald-500 border-4 border-zinc-950" />
+              </div>
 
-        {/* 消息列表 */}
-        {messages.map((msg) => (
-          <MessageBubble key={msg.id} message={msg} onInterruptResponse={onInterruptResponse} />
-        ))}
+              <div className="space-y-2 max-w-md">
+                <h2 className="text-2xl font-semibold text-gradient">
+                  数据分析智能体
+                </h2>
+                <p className="text-sm text-zinc-500 leading-relaxed">
+                  用自然语言提问。我会自动规划、执行分析、反思纠错，
+                  <br />
+                  并在需要时请求您确认。
+                </p>
+              </div>
 
-        {/* 加载动画 */}
-        {isStreaming && messages[messages.length - 1]?.role !== "assistant" && (
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Loader2 className="w-4 h-4 animate-spin" />
-            <span className="text-sm">思考中...</span>
-          </div>
-        )}
+              <div className="flex flex-wrap gap-2 justify-center max-w-lg">
+                {[
+                  { text: "分析数据分布特征", icon: "📊" },
+                  { text: "计算各维度汇总指标", icon: "🧮" },
+                  { text: "生成趋势图表", icon: "📈" },
+                  { text: "检测数据异常值", icon: "🔍" },
+                ].map((s, i) => (
+                  <motion.button
+                    key={s.text}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 + i * 0.05 }}
+                    onClick={() => onSend(s.text)}
+                    className="px-4 py-2 text-xs rounded-xl border border-zinc-800/60 bg-zinc-900/40
+                               text-zinc-400 hover:bg-zinc-800/60 hover:text-zinc-200 hover:border-violet-500/30
+                               transition-all duration-200 backdrop-blur-sm"
+                  >
+                    <span className="mr-1.5">{s.icon}</span>
+                    {s.text}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {messages.map((msg) => (
+            <MessageBubble
+              key={msg.id}
+              message={msg}
+              onInterruptResponse={onInterruptResponse}
+              isStreaming={isStreaming}
+            />
+          ))}
+        </AnimatePresence>
 
         <div ref={bottomRef} />
       </div>
 
       {/* 底部输入区 */}
-      <div className="border-t border-zinc-800 p-4 shrink-0">
-        <div className="flex items-end gap-2 bg-zinc-900 rounded-xl border border-zinc-800 p-2 focus-within:border-zinc-600 transition-colors">
+      <div className="border-t border-zinc-800/50 p-4 shrink-0 glass">
+        <div className="flex items-end gap-2 bg-zinc-900/60 backdrop-blur-xl rounded-2xl border border-zinc-800/60 p-2
+                        focus-within:border-violet-500/50 focus-within:shadow-lg focus-within:shadow-violet-500/10
+                        transition-all duration-200">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => {
-              // Enter 发送，Shift+Enter 换行
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 handleSubmit();
@@ -100,62 +150,85 @@ export function ChatPanel({ messages, isStreaming, onSend, onInterruptResponse }
             }}
             placeholder="描述你的分析需求..."
             rows={1}
-            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 resize-none outline-none px-2 py-1.5 max-h-32"
+            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 resize-none outline-none px-3 py-2 max-h-32"
           />
-          <Button
-            size="icon"
+          <button
             onClick={handleSubmit}
             disabled={!input.trim() || isStreaming}
-            className="shrink-0 h-8 w-8 rounded-lg"
+            className="shrink-0 h-9 w-9 rounded-xl flex items-center justify-center
+                       bg-gradient-to-br from-violet-500 to-indigo-600 text-white
+                       hover:from-violet-400 hover:to-indigo-500
+                       disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:from-violet-500 disabled:hover:to-indigo-600
+                       shadow-lg shadow-violet-500/20 transition-all duration-200
+                       hover:scale-105 active:scale-95"
           >
-            <Send className="w-4 h-4" />
-          </Button>
+            {isStreaming ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Send className="w-4 h-4" />
+            )}
+          </button>
         </div>
+        <p className="text-[10px] text-zinc-600 mt-2 text-center">
+          按 Enter 发送 · Shift + Enter 换行
+        </p>
       </div>
     </div>
   );
 }
 
 
-// 单条消息气泡
 function MessageBubble({
   message,
   onInterruptResponse,
+  isStreaming,
 }: {
   message: AgentMessage;
-  onInterruptResponse: (action: "approve" | "modify" | "reject", feedback: string) => void;
+  onInterruptResponse: (
+    action: "approve" | "modify" | "reject",
+    feedback: string
+  ) => void;
+  isStreaming: boolean;
 }) {
   const isUser = message.role === "user";
 
   return (
-    <div className={`flex gap-3 ${isUser ? "justify-end" : ""}`}>
-      {/* 助手头像 */}
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: "easeOut" }}
+      className={`flex gap-3 ${isUser ? "justify-end" : ""}`}
+    >
       {!isUser && (
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex items-center justify-center shrink-0 mt-0.5 shadow-lg shadow-violet-500/20">
           <Bot className="w-4 h-4 text-white" />
         </div>
       )}
 
-      <div className={`flex flex-col gap-2 max-w-[85%] ${isUser ? "items-end" : ""}`}>
+      <div className={`flex flex-col gap-2.5 max-w-[85%] ${isUser ? "items-end" : ""}`}>
         {/* 文本气泡 */}
-        <div
-          className={`rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${
-            isUser
-              ? "bg-indigo-600 text-white rounded-br-md"
-              : "bg-zinc-900 text-zinc-200 rounded-bl-md border border-zinc-800"
-          }`}
-        >
-          {isUser ? (
-            message.content
-          ) : (
-            <div className="prose prose-invert prose-sm max-w-none">
-              <ReactMarkdown>{message.content}</ReactMarkdown>
-            </div>
-          )}
-        </div>
+        {message.content && (
+          <div
+            className={`rounded-2xl px-4 py-3 text-sm leading-relaxed backdrop-blur-lg ${
+              isUser
+                ? "bg-gradient-to-br from-violet-600 to-indigo-600 text-white rounded-br-md shadow-lg shadow-violet-500/20"
+                : "bg-zinc-900/70 border border-zinc-800/60 text-zinc-200 rounded-bl-md"
+            }`}
+          >
+            {isUser ? (
+              message.content
+            ) : (
+              <div className="prose prose-invert prose-sm max-w-none prose-p:my-1 prose-pre:my-2">
+                <ReactMarkdown>{message.content}</ReactMarkdown>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 工具调用卡片 */}
-        {message.toolCalls?.map((tc) => <ToolCallCard key={tc.id} toolCall={tc} />)}
+        {message.toolCalls?.map((tc) => (
+          <ToolCallCard key={tc.id} toolCall={tc} />
+        ))}
 
         {/* 反思卡片 */}
         {message.reflections && message.reflections.length > 0 && (
@@ -164,94 +237,130 @@ function MessageBubble({
 
         {/* HITL 审批卡片 */}
         {message.interrupt && (
-          <HITLCard interrupt={message.interrupt} onRespond={onInterruptResponse} />
+          <HITLCard
+            interrupt={message.interrupt}
+            onRespond={onInterruptResponse}
+          />
         )}
       </div>
 
-      {/* 用户头像 */}
       {isUser && (
-        <div className="w-7 h-7 rounded-lg bg-zinc-700 flex items-center justify-center shrink-0 mt-0.5">
-          <User className="w-4 h-4 text-zinc-300" />
+        <div className="w-8 h-8 rounded-xl bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5 border border-zinc-700/50">
+          <User className="w-4 h-4 text-zinc-400" />
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
 
-// 人工干预审批卡片
 function HITLCard({
   interrupt,
   onRespond,
 }: {
   interrupt: InterruptRequest;
-  onRespond: (action: "approve" | "modify" | "reject", feedback: string) => void;
+  onRespond: (
+    action: "approve" | "modify" | "reject",
+    feedback: string
+  ) => void;
 }) {
   const [feedback, setFeedback] = useState("");
   const [mode, setMode] = useState<"view" | "edit">("view");
 
-  // 不同风险等级用不同颜色
-  const riskColor =
-    interrupt.risk_level === "high"
-      ? "border-red-500/50 bg-red-950/30"
-      : interrupt.risk_level === "medium"
-      ? "border-amber-500/50 bg-amber-950/30"
-      : "border-emerald-500/50 bg-emerald-950/30";
+  const riskConfig = {
+    high: {
+      color: "border-red-500/40 bg-red-950/20",
+      label: "高风险",
+      labelColor: "bg-red-500/20 text-red-300",
+    },
+    medium: {
+      color: "border-amber-500/40 bg-amber-950/20",
+      label: "中风险",
+      labelColor: "bg-amber-500/20 text-amber-300",
+    },
+    low: {
+      color: "border-emerald-500/40 bg-emerald-950/20",
+      label: "低风险",
+      labelColor: "bg-emerald-500/20 text-emerald-300",
+    },
+  };
+
+  const config =
+    riskConfig[interrupt.risk_level as keyof typeof riskConfig] ||
+    riskConfig.low;
 
   return (
-    <div className={`rounded-xl border ${riskColor} p-4 space-y-3 w-full max-w-lg`}>
+    <motion.div
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className={`rounded-2xl border ${config.color} p-4 space-y-3 w-full max-w-lg backdrop-blur-lg`}
+    >
       <div className="flex items-center gap-2">
         <ShieldAlert className="w-4 h-4 text-amber-400" />
-        <span className="text-sm font-semibold text-amber-300">需要确认</span>
-        <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400">
-          {interrupt.risk_level === "high" ? "高风险"
-            : interrupt.risk_level === "medium" ? "中风险" : "低风险"}
+        <span className="text-sm font-semibold text-amber-200">需要确认</span>
+        <span
+          className={`ml-auto text-[10px] px-2 py-0.5 rounded-full ${config.labelColor} uppercase tracking-wider`}
+        >
+          {config.label}
         </span>
       </div>
 
-      <p className="text-xs text-zinc-400">{interrupt.reasoning}</p>
+      <p className="text-xs text-zinc-400 leading-relaxed">
+        {interrupt.reasoning}
+      </p>
 
-      {/* 步骤列表 */}
-      <div className="space-y-1">
+      <div className="space-y-1.5 pt-1">
         {interrupt.steps.map((step, i) => (
           <div key={i} className="flex items-start gap-2 text-xs text-zinc-300">
-            <span className="text-zinc-600 shrink-0 mt-0.5">{i + 1}.</span>
+            <span className="text-violet-400 font-mono text-[10px] shrink-0 mt-0.5">
+              {String(i + 1).padStart(2, "0")}
+            </span>
             <span>{step}</span>
           </div>
         ))}
       </div>
 
-      {/* 编辑模式：输入修改意见 */}
       {mode === "edit" && (
         <textarea
           value={feedback}
           onChange={(e) => setFeedback(e.target.value)}
           placeholder="请输入修改意见..."
-          className="w-full bg-zinc-900 border border-zinc-700 rounded-lg p-2 text-xs text-zinc-200 resize-none outline-none focus:border-zinc-500"
+          className="w-full bg-zinc-900/60 border border-zinc-700/60 rounded-lg p-2.5 text-xs text-zinc-200 resize-none outline-none focus:border-violet-500/50 transition-colors"
           rows={2}
         />
       )}
 
-      {/* 三个操作按钮 */}
       <div className="flex gap-2 pt-1">
-        <Button size="sm" onClick={() => onRespond("approve", "")}
-          className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7">
-          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> 批准
-        </Button>
-        <Button size="sm" variant="outline"
+        <button
+          onClick={() => onRespond("approve", "")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                     bg-emerald-600 hover:bg-emerald-500 text-white
+                     shadow-lg shadow-emerald-500/20 transition-all duration-200
+                     hover:scale-105 active:scale-95"
+        >
+          <CheckCircle2 className="w-3.5 h-3.5" /> 批准
+        </button>
+        <button
           onClick={() => {
             if (mode === "view") setMode("edit");
             else onRespond("modify", feedback);
           }}
-          className="text-xs h-7 border-zinc-700 text-zinc-300">
-          <Edit3 className="w-3.5 h-3.5 mr-1" /> {mode === "view" ? "修改" : "提交修改"}
-        </Button>
-        <Button size="sm" variant="ghost"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                     border border-zinc-700/60 text-zinc-300 hover:bg-zinc-800/60
+                     transition-colors"
+        >
+          <Edit3 className="w-3.5 h-3.5" />{" "}
+          {mode === "view" ? "修改" : "提交修改"}
+        </button>
+        <button
           onClick={() => onRespond("reject", feedback || "用户拒绝")}
-          className="text-xs h-7 text-red-400 hover:text-red-300 hover:bg-red-950/30">
-          <XCircle className="w-3.5 h-3.5 mr-1" /> 拒绝
-        </Button>
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
+                     text-red-400 hover:text-red-300 hover:bg-red-950/30
+                     transition-colors"
+        >
+          <XCircle className="w-3.5 h-3.5" /> 拒绝
+        </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

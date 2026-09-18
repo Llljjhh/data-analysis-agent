@@ -1,12 +1,18 @@
 // src/components/tool-call-card.tsx
-// 显示 Agent 调用某个工具的过程，可折叠展开
+// 工具调用卡片 —— 默认折叠 + 动效
 "use client";
 
 import { useState } from "react";
-import { ChevronRight, Loader2, CheckCircle2, XCircle, Terminal } from "lucide-react";
+import {
+  ChevronRight,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Terminal,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import type { ToolCall } from "@/types/agent";
 
-// 工具名 → 中文标签映射
 const TOOL_LABELS: Record<string, string> = {
   execute_analysis_code: "执行分析代码",
   inspect_dataset: "检查数据集",
@@ -16,7 +22,6 @@ const TOOL_LABELS: Record<string, string> = {
 export function ToolCallCard({ toolCall }: { toolCall: ToolCall }) {
   const [expanded, setExpanded] = useState(false);
 
-  // 根据状态显示不同图标
   const statusIcon =
     toolCall.status === "running" ? (
       <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
@@ -26,42 +31,67 @@ export function ToolCallCard({ toolCall }: { toolCall: ToolCall }) {
       <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
     );
 
+  const statusColor =
+    toolCall.status === "running"
+      ? "border-amber-500/30 bg-amber-950/10"
+      : toolCall.status === "error"
+      ? "border-red-500/30 bg-red-950/10"
+      : "border-zinc-800/60 bg-zinc-900/40";
+
   return (
-    <div className="rounded-lg border border-zinc-800 bg-zinc-900/50 overflow-hidden w-full max-w-lg">
-      {/* 折叠头：点击展开/收起 */}
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`rounded-xl border ${statusColor} overflow-hidden w-full max-w-lg backdrop-blur-sm transition-colors`}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-zinc-800/50 transition-colors"
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-zinc-800/30 transition-colors"
       >
         <ChevronRight
-          className={`w-3.5 h-3.5 text-zinc-500 transition-transform ${expanded ? "rotate-90" : ""}`}
+          className={`w-3.5 h-3.5 text-zinc-500 transition-transform duration-200 ${
+            expanded ? "rotate-90" : ""
+          }`}
         />
         <Terminal className="w-3.5 h-3.5 text-zinc-500" />
         <span className="text-xs font-medium text-zinc-300">
           {TOOL_LABELS[toolCall.name] || toolCall.name}
         </span>
-        <span className="ml-auto flex items-center gap-1.5">{statusIcon}</span>
+        <span className="ml-auto flex items-center gap-2">{statusIcon}</span>
       </button>
 
-      {/* 展开后的详细内容 */}
-      {expanded && (
-        <div className="border-t border-zinc-800 px-3 py-2 space-y-2">
-          <div>
-            <span className="text-[10px] uppercase tracking-wider text-zinc-600">参数</span>
-            <pre className="mt-1 text-[11px] text-zinc-400 bg-zinc-950 rounded p-2 overflow-x-auto">
-              {JSON.stringify(toolCall.input, null, 2)}
-            </pre>
-          </div>
-          {toolCall.output && (
-            <div>
-              <span className="text-[10px] uppercase tracking-wider text-zinc-600">结果</span>
-              <pre className="mt-1 text-[11px] text-zinc-400 bg-zinc-950 rounded p-2 overflow-x-auto max-h-40">
-                {toolCall.output}
-              </pre>
+      <AnimatePresence>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="border-t border-zinc-800/50 overflow-hidden"
+          >
+            <div className="px-3 py-2.5 space-y-3">
+              <div>
+                <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium">
+                  参数
+                </span>
+                <pre className="mt-1.5 text-[11px] text-zinc-400 bg-zinc-950/60 rounded-lg p-2.5 overflow-x-auto border border-zinc-800/50 leading-relaxed">
+                  {JSON.stringify(toolCall.input, null, 2)}
+                </pre>
+              </div>
+              {toolCall.output && (
+                <div>
+                  <span className="text-[10px] uppercase tracking-widest text-zinc-600 font-medium">
+                    结果
+                  </span>
+                  <pre className="mt-1.5 text-[11px] text-zinc-400 bg-zinc-950/60 rounded-lg p-2.5 overflow-x-auto max-h-40 border border-zinc-800/50 leading-relaxed">
+                    {toolCall.output}
+                  </pre>
+                </div>
+              )}
             </div>
-          )}
-        </div>
-      )}
-    </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }

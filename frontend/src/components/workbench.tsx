@@ -1,15 +1,20 @@
 // src/components/workbench.tsx
-// NDJSON 分段流式解析
+// 三栏布局主界面 —— 玻璃拟态升级版
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import {
+  ResizablePanelGroup,
+  ResizablePanel,
+  ResizableHandle,
+} from "@/components/ui/resizable";
 import { ThreadSidebar } from "./thread-sidebar";
 import { ChatPanel } from "./chat-panel";
 import { ArtifactsPanel } from "./artifacts-panel";
 import type { AgentMessage } from "@/types/agent";
 
-const API_BASE = "http://localhost:8000";
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
 
 export function Workbench() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
@@ -19,13 +24,11 @@ export function Workbench() {
   const sessionIdRef = useRef(crypto.randomUUID());
 
   const sendMessage = useCallback(async (content: string) => {
-    // 显示用户消息
     setMessages((prev) => [
       ...prev,
       { id: crypto.randomUUID(), role: "user", content, timestamp: Date.now() },
     ]);
 
-    // 添加空的助手消息
     const assistantId = crypto.randomUUID();
     setMessages((prev) => [
       ...prev,
@@ -68,23 +71,15 @@ export function Workbench() {
             continue;
           }
 
-          // 状态提示（显示在助手气泡内容里）
           if (data.type === "status") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
-                  ? {
-                      ...m,
-                      content: m.content
-                        ? m.content  // 已有内容时不覆盖
-                        : data.msg,  // 首次显示状态
-                    }
+                  ? { ...m, content: m.content ? m.content : data.msg }
                   : m
               )
             );
-          }
-          // 代码推送
-          else if (data.type === "code") {
+          } else if (data.type === "code") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -103,9 +98,7 @@ export function Workbench() {
                   : m
               )
             );
-          }
-          // 执行结果推送
-          else if (data.type === "execution") {
+          } else if (data.type === "execution") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -115,7 +108,10 @@ export function Workbench() {
                         tc.name === "execute_analysis_code"
                           ? {
                               ...tc,
-                              output: data.execution?.stdout || data.execution?.error || "",
+                              output:
+                                data.execution?.stdout ||
+                                data.execution?.error ||
+                                "",
                               status: data.execution?.success
                                 ? ("completed" as const)
                                 : ("error" as const),
@@ -127,40 +123,37 @@ export function Workbench() {
                   : m
               )
             );
-            if (data.execution?.chart_path) setArtifactId(data.execution.chart_path);
-          }
-          // 反思推送
-          else if (data.type === "reflections") {
+            if (data.execution?.chart_path)
+              setArtifactId(data.execution.chart_path);
+          } else if (data.type === "reflections") {
             setReflections(data.reflections);
             setMessages((prev) =>
               prev.map((m) =>
-                m.id === assistantId ? { ...m, reflections: data.reflections } : m
-              )
-            );
-          }
-          // 逐段推送的报告文本
-          else if (data.type === "token") {
-            setMessages((prev) =>
-              prev.map((m) =>
                 m.id === assistantId
-                  ? {
-                      // 如果当前内容是状态提示，则替换；否则追加
-                      ...m,
-                      content: m.content.startsWith("🧠") ||
-                               m.content.startsWith("💬") ||
-                               m.content.startsWith("✍️") ||
-                               m.content.startsWith("⚙️") ||
-                               m.content.startsWith("🔍") ||
-                               m.content.startsWith("📝")
-                        ? data.content
-                        : m.content + data.content,
-                    }
+                  ? { ...m, reflections: data.reflections }
                   : m
               )
             );
-          }
-          // 完成
-          else if (data.type === "done") {
+          } else if (data.type === "token") {
+            setMessages((prev) =>
+              prev.map((m) => {
+                if (m.id !== assistantId) return m;
+                const isStatusMsg =
+                  m.content.startsWith("🧠") ||
+                  m.content.startsWith("📚") ||
+                  m.content.startsWith("💬") ||
+                  m.content.startsWith("💡") ||
+                  m.content.startsWith("✍️") ||
+                  m.content.startsWith("⚙️") ||
+                  m.content.startsWith("🔍") ||
+                  m.content.startsWith("📝");
+                return {
+                  ...m,
+                  content: isStatusMsg ? data.content : m.content + data.content,
+                };
+              })
+            );
+          } else if (data.type === "done") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -173,11 +166,10 @@ export function Workbench() {
                   : m
               )
             );
-            if (data.execution?.chart_path) setArtifactId(data.execution.chart_path);
+            if (data.execution?.chart_path)
+              setArtifactId(data.execution.chart_path);
             if (data.reflections?.length) setReflections(data.reflections);
-          }
-          // 错误
-          else if (data.type === "error") {
+          } else if (data.type === "error") {
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
@@ -230,7 +222,8 @@ export function Workbench() {
           ];
         });
 
-        if (data.execution?.chart_path) setArtifactId(data.execution.chart_path);
+        if (data.execution?.chart_path)
+          setArtifactId(data.execution.chart_path);
         if (data.reflections?.length) setReflections(data.reflections);
       } catch (err) {
         console.error("恢复失败:", err);
@@ -240,12 +233,20 @@ export function Workbench() {
   );
 
   return (
-    <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex">
-      <div className="w-[260px] shrink-0">
+    <div className="h-screen w-screen bg-zinc-950 text-zinc-100 overflow-hidden flex relative">
+      {/* 背景装饰：微妙的径向光晕 */}
+      <div className="pointer-events-none absolute inset-0 z-0">
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-violet-500/5 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* 左侧栏：玻璃拟态 */}
+      <div className="w-[260px] shrink-0 glass-panel border-r border-zinc-800/50 z-10">
         <ThreadSidebar />
       </div>
 
-      <div className="flex-1 min-w-0">
+      {/* 右侧：聊天 + 产物 */}
+      <div className="flex-1 min-w-0 z-10">
         <ResizablePanelGroup direction="horizontal">
           <ResizablePanel defaultSize={64} minSize={40}>
             <ChatPanel
@@ -256,7 +257,10 @@ export function Workbench() {
             />
           </ResizablePanel>
 
-          <ResizableHandle withHandle className="bg-zinc-800" />
+          <ResizableHandle
+            withHandle
+            className="bg-zinc-800/50 hover:bg-violet-500/50 transition-colors"
+          />
 
           <ResizablePanel defaultSize={36} minSize={20}>
             <ArtifactsPanel
